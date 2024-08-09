@@ -103,7 +103,7 @@ export default function StoreArrivalScreen({ route, navigation }) {
 
       <View style={styles.detailsContainer}>
         <Text style={styles.orderNumber}>رقم الطلب: {notificationData?.order?.order_numbers}</Text>
-        <Text style={styles.storeName}>اسم المتجر: {notificationData?.store?.name || 'اسم المتجر غير متوفر'}</Text>
+        <Text style={styles.storeName}>اسم المتجر: {notificationData?.order?.store?.name || 'اسم المتجر غير متوفر'}</Text>
       </View>
 
       <ScrollView style={styles.itemsContainer}>

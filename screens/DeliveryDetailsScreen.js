@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, Image, Alert, Linking } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, Image, Alert, Linking, ScrollView } from 'react-native';
 import MapView, { Marker, Polyline } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { getDistance } from 'geolib';
@@ -249,7 +249,7 @@ export default function DeliveryDetailsScreen({ route, navigation }) {
   };
 
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={cancelOrder} style={styles.cancelButton}>
           <Ionicons name="close" size={24} color="white" />
@@ -320,7 +320,7 @@ export default function DeliveryDetailsScreen({ route, navigation }) {
       <TouchableOpacity style={styles.finishButton} onPress={handleOrderDelivered}>
         <Text style={styles.finishButtonText}>تم توصيل الطلب</Text>
       </TouchableOpacity>
-    </View>
+    </ScrollView>
   );
 }
 
@@ -354,13 +354,13 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   mapContainer: {
-    flex: 1,
+    height: 300, // Set a fixed height for the map container
     margin: 20,
     borderRadius: 10,
     overflow: 'hidden',
   },
   map: {
-    flex: 1,
+    flex: 1, // should take full container
   },
   markerImage: {
     width: 40,
@@ -391,14 +391,15 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.1,
     shadowRadius: 10,
+    marginBottom: 20,
   },
   customerName: {
     fontSize: 18,
     marginBottom: 10,
-    textAlign: 'right', // Align text to the right
+    textAlign: 'right',
   },
   addressContainer: {
-    backgroundColor: '#e6f7ff', // Background color for address section
+    backgroundColor: '#e6f7ff',
     padding: 15,
     borderRadius: 10,
     marginBottom: 15,
@@ -407,34 +408,34 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     marginBottom: 5,
-    textAlign: 'right', // Align text to the right
+    textAlign: 'right',
   },
   addressText: {
     fontSize: 16,
-    textAlign: 'right', // Align text to the right
+    textAlign: 'right',
   },
   phoneContainer: {
-    flexDirection: 'row-reverse', // Align items to start from the right
+    flexDirection: 'row-reverse',
     alignItems: 'center',
-    backgroundColor: '#e0ffe0', // Background color for phone section
+    backgroundColor: '#e0ffe0',
     padding: 15,
     borderRadius: 10,
     marginBottom: 15,
   },
   customerPhone: {
     fontSize: 16,
-    marginRight: 10, // Margin to the right for spacing
-    textAlign: 'right', // Align text to the right
+    marginRight: 10,
+    textAlign: 'right',
   },
   estimatedTime: {
     fontSize: 16,
     marginBottom: 10,
-    textAlign: 'right', // Align text to the right
+    textAlign: 'right',
   },
   deliveryNotes: {
     fontSize: 16,
     marginBottom: 10,
-    textAlign: 'right', // Align text to the right
+    textAlign: 'right',
   },
   finishButton: {
     alignItems: 'center',

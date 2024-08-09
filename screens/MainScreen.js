@@ -64,7 +64,7 @@ export default function MainScreen() {
   }, []);
 
   useEffect(() => {
-    if (!deliveryId) return; 
+    if (!deliveryId) return;
 
     const pusher = new Pusher('a7675dfaac8ec49f6511', {
       cluster: 'eu',
@@ -100,13 +100,10 @@ export default function MainScreen() {
 
       console.log('Decoded and parsed data:', parsedData);
 
-      const response = await fetch('http://10.0.2.2:8000/api/get-connected-workers');
-      if (!response.ok) {
-        throw new Error('Network response was not ok');
-      }
-      const responseData = await response.json();
-      const connectedWorkers = responseData.workerid;
-      if (connectedWorkers.includes(parseInt(deliveryId))) {
+      const storedDeliveryId = await AsyncStorage.getItem('delivery_id');
+      
+      const connectedWorkers = parsedData.connectedWorkers.map(worker => worker.id);
+      if (connectedWorkers.includes(parseInt(storedDeliveryId))) {
         if (notifications.length === 0) {
           setNotifications(prevNotifications => [...prevNotifications, parsedData]);
           if (!showNotification) {
@@ -203,7 +200,6 @@ export default function MainScreen() {
       if (response.status === 200) {
         Alert.alert('نجاح', 'تم قبول الطلب بنجاح.');
 
-        // Step 2: تحديث حالة الطلب إلى "الطلب في مرحلة التوصيل"
         const statusResponse = await fetch(`http://10.0.2.2:8000/api/orders/status/${orderId}`, {
           method: 'POST',
           headers: {
@@ -215,7 +211,6 @@ export default function MainScreen() {
         if (statusResponse.ok) {
           Alert.alert('نجاح', 'تم تحديث حالة الطلب بنجاح.');
 
-          // Step 3: التنقل إلى شاشة "InProgressScreen"
           navigation.navigate('InProgressScreen', { notificationData: notifications[currentNotificationIndex] });
         } else {
           Alert.alert('خطأ', 'حدث خطأ أثناء تحديث حالة الطلب.');
@@ -249,7 +244,6 @@ export default function MainScreen() {
             return updatedNotifications;
           });
 
-          // Move to the next order in the pending list, if available
           if (pendingNotifications.length > 0) {
             const nextNotification = pendingNotifications[0];
             setNotifications(prevNotifications => [...prevNotifications, nextNotification]);
@@ -259,13 +253,17 @@ export default function MainScreen() {
           Alert.alert('خطأ', 'لم يتم العثور على معرّف التوصيل.');
         }
       } catch (error) {
-        console.error('Error fetching delivery id:', error);
-        Alert.alert('خطأ', 'حدث خطأ أثناء جلب معرّف التوصيل.');
+        console.error('Error fetching deliveryId from AsyncStorage:', error);
       }
     } else {
-      Alert.alert('خطأ', 'لا توجد بيانات للإشعار.');
+      Alert.alert('خطأ', 'لا توجد إشعارات لعرضها.');
     }
   };
+
+  useEffect(() => {
+    console.log('Current Notifications:', notifications);
+
+  }, [notifications]);
 
   return (
     <View style={styles.container}>
@@ -326,7 +324,7 @@ export default function MainScreen() {
             <View style={styles.modalContent}>
               <Text style={styles.modalTitle}>طلب جديد</Text>
               <Text style={styles.modalOrderNumber}>رقم الطلب: {notifications[currentNotificationIndex]?.order?.order_numbers}</Text>
-              <Text style={styles.modalStoreName}>اسم المتجر: {notifications[currentNotificationIndex]?.store?.name}</Text>
+              <Text style={styles.modalStoreName}>اسم المتجر: {notifications[currentNotificationIndex]?.order?.store?.name}</Text>
               <Text style={styles.modalAddress}>
                 العنوان: {notifications[currentNotificationIndex]?.order?.address?.area}
               </Text>
@@ -387,7 +385,7 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   mapContainer: {
-    height: 375, // تقليل الارتفاع إلى 300
+    height: 375,
     marginHorizontal: 16,
     marginVertical: 10,
     borderRadius: 15,
