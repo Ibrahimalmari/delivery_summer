@@ -19,6 +19,10 @@ const Footer = () => {
         <Ionicons name="person" size={24} color="white" />
         <Text style={styles.footerButtonText}>ملفي الشخصي</Text>
       </TouchableOpacity>
+      <TouchableOpacity style={styles.footerButton} onPress={() => navigation.navigate('MyDeliveriesScreen')}>
+        <Ionicons name="car" size={24} color="white" />
+        <Text style={styles.footerButtonText}>توصيلاتي</Text>
+      </TouchableOpacity>
     </View>
   );
 };

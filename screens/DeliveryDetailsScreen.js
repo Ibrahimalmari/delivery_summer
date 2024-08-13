@@ -4,7 +4,7 @@ import MapView, { Marker, Polyline } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { getDistance } from 'geolib';
 import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage'; // استيراد AsyncStorage
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function DeliveryDetailsScreen({ route, navigation }) {
   const { notificationData } = route.params;
@@ -34,7 +34,6 @@ export default function DeliveryDetailsScreen({ route, navigation }) {
         return;
       }
 
-      // Start watching position
       const locationSubscription = await Location.watchPositionAsync(
         {
           accuracy: Location.Accuracy.High,
@@ -48,7 +47,6 @@ export default function DeliveryDetailsScreen({ route, navigation }) {
           };
           setUserLocation(newUserLocation);
 
-          // Update the region to center on user location
           setRegion({
             latitude: newUserLocation.latitude,
             longitude: newUserLocation.longitude,
@@ -56,10 +54,8 @@ export default function DeliveryDetailsScreen({ route, navigation }) {
             longitudeDelta: 0.015,
           });
 
-          // Fetch the route and update the coordinates
           getRouteCoordinates(newUserLocation, customerLocation);
 
-          // Calculate estimated time if it hasn't been calculated yet
           if (!initialCalculationDone) {
             calculateEstimatedTime(newUserLocation, customerLocation);
             setInitialCalculationDone(true);
@@ -92,7 +88,6 @@ export default function DeliveryDetailsScreen({ route, navigation }) {
       const startCoordinates = `${start.longitude},${start.latitude}`;
       const endCoordinates = `${end.longitude},${end.latitude}`;
       
-      // Request directions from OSRM
       const response = await fetch(`http://router.project-osrm.org/route/v1/driving/${startCoordinates};${endCoordinates}?overview=full`);
       const data = await response.json();
 
@@ -152,23 +147,42 @@ export default function DeliveryDetailsScreen({ route, navigation }) {
           text: 'تأكيد', 
           onPress: async () => {
             try {
-              // Send request to update the order status
               const response = await fetch(`http://10.0.2.2:8000/api/orders/status/${notificationData.order.id}`, {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
-                  // You might need to add an authentication header like 'Authorization': 'Bearer YOUR_TOKEN'
                 },
                 body: JSON.stringify({ order_status: 'تم تسليم الطلب' }),
               });
 
               if (response.ok) {
-                // Show success message and navigate to the next screen
-                Alert.alert('نجاح', 'تم تأكيد توصيل الطلب بنجاح.', [
-                  { text: 'موافق', onPress: () => navigation.navigate('MainScreen') }
-                ]);
+                const deliveryWorkerId = await AsyncStorage.getItem('delivery_id');
+                if (!deliveryWorkerId) {
+                  Alert.alert('خطأ', 'لم يتم العثور على معرف عامل التوصيل.');
+                  return;
+                }
+
+                const transactionResponse = await fetch('http://10.0.2.2:8000/api/transactions/delivery', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    delivery_worker_id: deliveryWorkerId,
+                    order_id: notificationData.order.id,
+                    total_amount: totalAmount,
+                    amount_paid: totalAmount,
+                    delivery_fee: notificationData?.order?.delivery_fee,
+                  }),
+                });
+                if (transactionResponse.ok) {
+                  Alert.alert('نجاح', 'تم تأكيد توصيل الطلب وإنشاء المعاملة بنجاح.', [
+                    { text: 'موافق', onPress: () => navigation.navigate('MainScreen') }
+                  ]);
+                } else {
+                  Alert.alert('خطأ', 'فشل في إنشاء المعاملة. حاول مرة أخرى.');
+                }
               } else {
-                // Show failure message
                 Alert.alert('خطأ', 'فشل في تأكيد توصيل الطلب. حاول مرة أخرى.');
               }
             } catch (error) {
@@ -191,14 +205,12 @@ export default function DeliveryDetailsScreen({ route, navigation }) {
           text: 'تأكيد', 
           onPress: async () => {
             try {
-              // جلب معرف العامل من AsyncStorage
               const deliveryWorkerId = await AsyncStorage.getItem('delivery_id');
               if (!deliveryWorkerId) {
                 Alert.alert('خطأ', 'لم يتم العثور على معرف العامل.');
                 return;
               }
 
-              // إرسال طلب الإلغاء
               const response = await fetch('http://10.0.2.2:8000/api/cancel-order', {
                 method: 'POST',
                 headers: {
@@ -206,13 +218,13 @@ export default function DeliveryDetailsScreen({ route, navigation }) {
                 },
                 body: JSON.stringify({
                   order_id: notificationData.order.id,
-                  delivery_worker_id: deliveryWorkerId, // استخدام معرف العامل هنا
+                  delivery_worker_id: deliveryWorkerId,
                 }),
               });
 
               if (response.ok) {
                 Alert.alert('نجاح', 'تم إلغاء الطلب بنجاح.');
-                navigation.goBack(); // العودة إلى الشاشة السابقة
+                navigation.goBack(); 
               } else {
                 Alert.alert('خطأ', 'فشل في إلغاء الطلب. حاول مرة أخرى.');
               }
@@ -227,7 +239,6 @@ export default function DeliveryDetailsScreen({ route, navigation }) {
     );
   };
 
-  // Function to call the customer
   const callCustomer = () => {
     const phoneNumber = `tel:${notificationData?.customer?.phone}`;
     Linking.openURL(phoneNumber);
@@ -271,7 +282,7 @@ export default function DeliveryDetailsScreen({ route, navigation }) {
             longitudeDelta: Math.abs(userLocation.longitude - customerLocation.longitude) + 0.1,
           }}
           region={region}
-          onRegionChangeComplete={(newRegion) => setRegion(newRegion)} // Update region when map is moved manually
+          onRegionChangeComplete={(newRegion) => setRegion(newRegion)} 
         >
           <Marker
             coordinate={userLocation}
@@ -354,13 +365,13 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   mapContainer: {
-    height: 300, // Set a fixed height for the map container
+    height: 300, // حجم ثابت للخريطة لتبقى مرئية دون التأثير على التمرير
     margin: 20,
     borderRadius: 10,
     overflow: 'hidden',
   },
   map: {
-    flex: 1, // should take full container
+    flex: 1,
   },
   markerImage: {
     width: 40,
@@ -391,7 +402,6 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.1,
     shadowRadius: 10,
-    marginBottom: 20,
   },
   customerName: {
     fontSize: 18,

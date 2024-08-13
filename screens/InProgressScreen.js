@@ -146,6 +146,8 @@ export default function InProgressScreen({ route, navigation }) {
         longitudeDelta: 0.05,
       }, 1000);
     }
+  
+
   };
 
   const navigateToStoreArrival = async () => {

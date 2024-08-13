@@ -5,6 +5,8 @@ import StoreArrivalScreen from "./StoreArrivalScreen"
 import DeliveryDetailsScreen from "./DeliveryDetailsScreen"
 import EditProfileScreen from "./EditProfileScreen"
 import Footer from "./PageBasic/Footer"
+import TransactionsScreen from "./TransactionsScreen"
+import MyDeliveriesScreen from "./MyDeliveriesScreen"
 export {
     Login,
     MainScreen,
@@ -13,4 +15,6 @@ export {
     DeliveryDetailsScreen,
     EditProfileScreen,
     Footer,
+    TransactionsScreen,
+    MyDeliveriesScreen,
 }

@@ -71,14 +71,18 @@ export default function Login() {
       const data = await response.json();
   
       if (response.status === 200) {
-        // تخزين توكن العميل ومعرّف العميل في AsyncStorage
-        await AsyncStorage.setItem('token', data.token);
-        await AsyncStorage.setItem('delivery_id', data.delivery_id.toString());
+        if (data.status === 402) { // إذا كانت حالة الحساب معلق
+          Alert.alert('تنبيه', 'المستحقات المالية متأخرة. يرجى تسوية مستحقاتك مع الشركة.');
+        } else {
+          // تخزين توكن العميل ومعرّف العميل في AsyncStorage
+          await AsyncStorage.setItem('token', data.token);
+          await AsyncStorage.setItem('delivery_id', data.delivery_id.toString());
   
-        // عرض رسالة نجاح
-        Alert.alert('نجاح', 'تم تسجيل الدخول بنجاح', [
-          { text: 'موافق', onPress: () => navigation.navigate('MainScreen') },
-        ]);
+          // عرض رسالة نجاح
+          Alert.alert('نجاح', 'تم تسجيل الدخول بنجاح', [
+            { text: 'موافق', onPress: () => navigation.navigate('MainScreen') },
+          ]);
+        }
       } else {
         Alert.alert('خطأ', data.message);
       }

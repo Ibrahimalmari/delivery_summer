@@ -86,7 +86,7 @@ const EditProfileScreen = () => {
 
   const profileMenuItems = [
     { id: 'profile', title: 'تعديل ملفي الشخصي', screen: 'EditProfileScreen' },
-    { id: 'requests', title: 'طلباتي', screen: 'MyRequestsScreen' },
+    { id: 'requests', title: 'طلباتي', screen: 'MyDeliveriesScreen' },
   ];
 
   if (loading) {

@@ -23,7 +23,9 @@ export default function MainScreen() {
   const [currentNotificationIndex, setCurrentNotificationIndex] = useState(0);
   const [timer, setTimer] = useState(60);
   const [distance, setDistance] = useState(null);
-  const [deliveryId, setDeliveryId] = useState(null); 
+  const [deliveryId, setDeliveryId] = useState(null);
+  const [acceptanceRate, setAcceptanceRate] = useState(null);
+  const [rejectionRate, setRejectionRate] = useState(null);
   const mapRef = useRef(null);
   const intervalRef = useRef(null);
   const navigation = useNavigation();
@@ -176,19 +178,65 @@ export default function MainScreen() {
     }
   };
 
-  const rejectOrder = () => {
-    setNotifications(prevNotifications => {
-      const updatedNotifications = [...prevNotifications];
-      updatedNotifications.shift();
-      if (updatedNotifications.length > 0) {
-        setCurrentNotificationIndex(0);
-      } else {
-        setShowNotification(false);
+  const rejectOrder = async () => {
+    if (notifications.length > 0) {
+      const orderId = notifications[currentNotificationIndex].order.id;
+  
+      try {
+        const deliveryId = await AsyncStorage.getItem('delivery_id');
+  
+        if (deliveryId) {
+          const response = await axios.post('http://10.0.2.2:8000/api/reject-order-for-delivery', {
+            order_id: orderId,
+            delivery_worker_id: deliveryId,
+          });
+  
+          if (response.status === 200) {
+            Alert.alert('نجاح', 'تم رفض الطلب بنجاح.');
+            setNotifications(prevNotifications => {
+              const updatedNotifications = [...prevNotifications];
+              updatedNotifications.shift();
+              if (updatedNotifications.length > 0) {
+                setCurrentNotificationIndex(0);
+              } else {
+                setShowNotification(false);
+              }
+              return updatedNotifications;
+            });
+          } else {
+            console.log('Error response data:', response.data);
+            Alert.alert('خطأ', 'حدث خطأ أثناء رفض الطلب.');
+          }
+        } else {
+          Alert.alert('خطأ', 'لم يتم العثور على معرّف التوصيل.');
+        }
+      } catch (error) {
+        console.error('Error fetching deliveryId from AsyncStorage:', error);
+        Alert.alert('خطأ', 'حدث خطأ أثناء رفض الطلب.');
       }
-      return updatedNotifications;
-    });
-    setTimer(60);
+    } else {
+      Alert.alert('خطأ', 'لا توجد إشعارات لعرضها.');
+    }
   };
+
+  useEffect(() => {
+    if (notifications.length > 0 && showNotification) {
+      setTimer(60); // إعادة تعيين المؤقت إلى 60 ثانية
+  
+      intervalRef.current = setInterval(() => {
+        setTimer(prev => {
+          if (prev <= 1) {
+            clearInterval(intervalRef.current);
+            rejectOrder(); // رفض الطلب تلقائيًا عند انتهاء الوقت
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+  
+      return () => clearInterval(intervalRef.current); // تنظيف المؤقت عند التغيير
+    }
+  }, [notifications, showNotification]);
 
   const sendOrderAcceptance = async (orderId, deliveryId) => {
     try {
@@ -215,55 +263,59 @@ export default function MainScreen() {
         } else {
           Alert.alert('خطأ', 'حدث خطأ أثناء تحديث حالة الطلب.');
         }
+
+        setNotifications(prevNotifications => {
+          const updatedNotifications = [...prevNotifications];
+          updatedNotifications.shift();
+          if (updatedNotifications.length > 0) {
+            setCurrentNotificationIndex(0);
+          } else {
+            setShowNotification(false);
+          }
+          return updatedNotifications;
+        });
       } else {
-        console.log('Error response data:', response.data);
         Alert.alert('خطأ', 'حدث خطأ أثناء قبول الطلب.');
       }
     } catch (error) {
-      console.error('Error accepting order:', error.response ? error.response.data : error.message);
+      console.error('Error accepting order:', error);
       Alert.alert('خطأ', 'حدث خطأ أثناء قبول الطلب.');
     }
   };
 
   const acceptOrder = async () => {
-    if (notifications.length > 0) {     
+    if (notifications.length > 0) {
       const orderId = notifications[currentNotificationIndex].order.id;
-      try {
-        const deliveryId = await AsyncStorage.getItem('delivery_id');
-
-        if (deliveryId) {
-          await sendOrderAcceptance(orderId, deliveryId);
-          setNotifications(prevNotifications => {
-            const updatedNotifications = [...prevNotifications];
-            updatedNotifications.shift();
-            if (updatedNotifications.length > 0) {
-              setCurrentNotificationIndex(0);
-            } else {
-              setShowNotification(false);
-            }
-            return updatedNotifications;
-          });
-
-          if (pendingNotifications.length > 0) {
-            const nextNotification = pendingNotifications[0];
-            setNotifications(prevNotifications => [...prevNotifications, nextNotification]);
-            setPendingNotifications(prevPending => prevPending.slice(1));
-          }
-        } else {
-          Alert.alert('خطأ', 'لم يتم العثور على معرّف التوصيل.');
-        }
-      } catch (error) {
-        console.error('Error fetching deliveryId from AsyncStorage:', error);
+      const deliveryId = await AsyncStorage.getItem('delivery_id');
+      if (deliveryId) {
+        sendOrderAcceptance(orderId, deliveryId);
+      } else {
+        Alert.alert('خطأ', 'لم يتم العثور على معرّف التوصيل.');
       }
-    } else {
-      Alert.alert('خطأ', 'لا توجد إشعارات لعرضها.');
+    }
+  };
+
+  const fetchRates = async () => {
+    try {
+      const deliveryId = await AsyncStorage.getItem('delivery_id');
+      if (deliveryId) {
+        const response = await axios.get(`http://10.0.2.2:8000/api/delivery-men/rates/${deliveryId}`);
+        const rates = response.data;
+        setAcceptanceRate(rates.acceptance_rate); // تأكد من أن هذه الحقول موجودة في البيانات المستلمة
+        setRejectionRate(rates.rejection_rate);
+      }
+    } catch (error) {
+      console.error('Error fetching rates:', error);
     }
   };
 
   useEffect(() => {
-    console.log('Current Notifications:', notifications);
+    fetchRates(); // Fetch rates on mount
 
-  }, [notifications]);
+    const intervalId = setInterval(fetchRates, 10000); // Fetch rates every 10 seconds
+
+    return () => clearInterval(intervalId); // Clean up interval on unmount
+  }, []);
 
   return (
     <View style={styles.container}>
@@ -281,6 +333,10 @@ export default function MainScreen() {
         </TouchableOpacity>
       </View>
       <Text style={styles.dateText}>{moment().format('YYYY-MM-DD')}</Text>
+      <View style={styles.ratesContainer}>
+        <Text style={styles.rateText}>نسبة القبول: {acceptanceRate ? `${acceptanceRate}%` : 'جاري التحميل...'}</Text>
+        <Text style={styles.rateText}>نسبة الرفض: {rejectionRate ? `${rejectionRate}%` : 'جاري التحميل...'}</Text>
+      </View>
       <View style={styles.mapContainer}>
         <MapView
           ref={mapRef}
@@ -350,24 +406,18 @@ export default function MainScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FAFAFA',
+    backgroundColor: '#F5F5F5',
   },
   header: {
+    padding: 16,
+    backgroundColor: '#4CAF50',
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
-    backgroundColor: '#4E6FB6',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
-    elevation: 4,
   },
   headerTitle: {
     color: '#FFFFFF',
-    fontSize: 22,
-    fontWeight: 'bold',
+    fontSize: 20,
   },
   switchContainer: {
     flexDirection: 'row',
@@ -375,40 +425,39 @@ const styles = StyleSheet.create({
   },
   switchText: {
     color: '#FFFFFF',
-    fontSize: 16,
     marginLeft: 8,
   },
   dateText: {
+    padding: 16,
     fontSize: 16,
     textAlign: 'center',
-    marginVertical: 10,
-    color: '#666',
+  },
+  ratesContainer: {
+    padding: 16,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: '#DDDDDD',
+  },
+  rateText: {
+    fontSize: 18,
+    color: '#333',
+    marginVertical: 5,
   },
   mapContainer: {
-    height: 375,
-    marginHorizontal: 16,
-    marginVertical: 10,
-    borderRadius: 15,
-    overflow: 'hidden',
-    backgroundColor: '#FFFFFF',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 6,
+    flex: 1,
+    position: 'relative',
   },
   map: {
-    height: '100%',
-    width: '100%',
+    flex: 1,
   },
   currentLocationButton: {
     position: 'absolute',
-    bottom: 20,
-    right: 20,
-    backgroundColor: '#00796B',
-    padding: 12,
+    bottom: 16,
+    right: 16,
+    backgroundColor: '#4CAF50',
+    padding: 10,
     borderRadius: 50,
-    elevation: 6,
   },
   modalOverlay: {
     flex: 1,
@@ -417,90 +466,59 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   modalContent: {
-    width: '90%',
-    maxWidth: 400,
-    padding: 20,
+    width: '80%',
     backgroundColor: '#FFFFFF',
-    borderRadius: 15,
+    padding: 20,
+    borderRadius: 10,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
   },
   modalTitle: {
-    fontSize: 24,
+    fontSize: 18,
     fontWeight: 'bold',
-    marginBottom: 15,
-    color: '#333',
+    marginBottom: 10,
   },
   modalOrderNumber: {
-    fontSize: 18,
-    marginBottom: 10,
-    textAlign: 'center',
-    color: '#444',
+    fontSize: 16,
+    marginBottom: 5,
   },
   modalStoreName: {
-    fontSize: 18,
-    marginBottom: 10,
-    textAlign: 'center',
-    color: '#444',
+    fontSize: 16,
+    marginBottom: 5,
   },
   modalAddress: {
-    fontSize: 18,
-    marginBottom: 10,
-    textAlign: 'center',
-    color: '#444',
+    fontSize: 16,
+    marginBottom: 5,
   },
   modalEstimatedEarnings: {
-    fontSize: 18,
-    marginBottom: 10,
-    textAlign: 'center',
-    color: '#444',
+    fontSize: 16,
+    marginBottom: 5,
   },
   modalTimer: {
-    fontSize: 18,
-    marginTop: 10,
-    fontWeight: '500',
-    color: '#666',
+    fontSize: 16,
+    marginBottom: 15,
   },
   modalButtons: {
-    marginTop: 20,
     flexDirection: 'row',
     justifyContent: 'space-between',
     width: '100%',
   },
   acceptButton: {
     backgroundColor: '#4CAF50',
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 2,
+    padding: 10,
+    borderRadius: 5,
+    marginRight: 10,
   },
   acceptButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
-    fontWeight: '600',
   },
   rejectButton: {
     backgroundColor: '#F44336',
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 2,
+    padding: 10,
+    borderRadius: 5,
   },
   rejectButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
-    fontWeight: '600',
   },
 });
